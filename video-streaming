@@ -1,0 +1,83 @@
+#!/usr/bin/sh
+
+#chkconfig:1234 90 60
+### BEGIN INIT INFO
+# Provides:	Signify.com
+# Required-Start:	$local_fs $network
+# Required-Stop:	$local_fs
+# Default-Start:	2 3 4 5
+# Default-Stop:		S 0 1 6
+# Short-Description:	Video streaming service
+# Description:		Video streaming daemon
+### END INIT INFO
+
+PROG_PATH="/usr/local/bin/"
+PROG="ffmpeg"
+PROG_ARGS=" -f video4linux2 -r 30 -video_size 800x600 -i /dev/video0 -c:v h264_omx -f flv rtmp://3dplegacy.iotspacex.com/live/123 -preset:v veryfast -tune:v zerolatency -thread_queue_size 1024 -an -b:v 10M -bufsize 10M -pix_fmt yuv420p -g 60"
+#TIME_FLAG=" -vf drawtext=fontsize=160:text='%{localtime\:%T}'"
+PID_FILE="/var/run/video-streaming.pid"
+
+DELAY=10
+
+start() {
+	if [ -e $PID_FILE ]; then
+		echo "Error! Video streaming is already currently running!" 1>&2
+		exit 1
+	else
+		# ffmpeg depends on other system services, so wait some time until they are ready after OS started-up.
+		echo "Video streaming will start, waiting $DELAY seconds..."
+		sleep $DELAY
+		daemonize -p $PID_FILE $PROG_PATH$PROG $PROG_ARGS 2>&1 > /dev/null &
+		echo "Video streaming started."
+	fi
+}
+
+stop() {
+	if [ -e $PID_FILE ]; then
+		echo "Video streaming will be terminated..."
+		killall $PROG
+		rm -f $PID_FILE
+		echo "Video streaming stopped."
+	else
+		echo "Error! Video streaming is NOT running yet!" 1>&2
+		exit 1
+	fi
+}
+
+self_status() {
+	if [ -e $PID_FILE ]; then
+		echo "Video streaming is running!"
+	else
+		echo "Video streaming is NOT running!"
+	fi
+}
+
+if [ "$(id -u)" != "0" ]; then
+	echo "Please run video streaming as root" 1>&2
+	exit 1
+fi
+
+case "$1" in
+	start)
+		$1
+		exit 0
+	;;
+	stop)
+		$1
+		exit 0
+	;;
+	restart)
+		stop
+		start
+		exit 0
+	;;
+	status)
+		self_status
+		exit 0
+	;;
+	**)
+		echo "Usage: $0 {start|stop|restart|status}" 1>&2
+		exit 1
+	;;
+
+esac
