@@ -1,0 +1,1 @@
+./configure --host=arm-unknown-linux-gnueabi --enable-static --disable-opencl --enable-shared
